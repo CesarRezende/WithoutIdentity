@@ -14,7 +14,7 @@ namespace WithoutIdentity.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly SignInManager<ApplicationUser> _signManager;
 
-        public ManagerController(UserManager<ApplicationUser> userManager, 
+        public ManagerController(UserManager<ApplicationUser> userManager,
                                 SignInManager<ApplicationUser> signManager)
         {
             _userManager = userManager;
@@ -30,11 +30,13 @@ namespace WithoutIdentity.Controllers
 
             var user = await _userManager.GetUserAsync(User);
 
-            if (user == null) {
+            if (user == null)
+            {
                 throw new ApplicationException($"Não foi possível carregar o usuário com o ID '{_userManager.GetUserId(User)}'");
             }
 
-            var model = new IndexViewModel() {
+            var model = new IndexViewModel()
+            {
                 UserName = user.UserName,
                 Email = user.Email,
                 IsEmailConfirmed = user.EmailConfirmed,
@@ -86,5 +88,65 @@ namespace WithoutIdentity.Controllers
 
             return RedirectToAction(nameof(Index));
         }
+
+        [HttpGet]
+        public async Task<IActionResult> ChangePassword()
+        {
+
+            var user = await _userManager.GetUserAsync(User);
+
+            if (user == null)
+            {
+                throw new ApplicationException($"Não foi possível carregar os dados dos usuários com id {_userManager.GetUserId(User)}");
+            }
+
+            var model = new ChangePasswordViewModel();
+
+            model.StatusMessage = StatusMessage;
+
+            return View(model);
+        }
+
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model)
+        {
+
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            var user = await _userManager.GetUserAsync(User);
+
+            if (user == null)
+            {
+                throw new ApplicationException($"Não foi possível carregar os dados dos usuários com id {_userManager.GetUserId(User)}");
+            }
+
+            var changePasswordResult = await _userManager.ChangePasswordAsync(user, model.OldPassword, model.NewPassword);
+
+
+            if (!changePasswordResult.Succeeded)
+            {
+                foreach (var error in changePasswordResult.Errors)
+                {
+                    ModelState.AddModelError(string.Empty, error.Description);
+                }
+
+                return View(model);
+            }
+
+            await _signManager.SignInAsync(user, isPersistent: false);
+
+            StatusMessage = "Sua senha foi alterada com sucesso";
+
+            return RedirectToAction(nameof(ChangePassword));
+
+
+        }
+
     }
+
 }
